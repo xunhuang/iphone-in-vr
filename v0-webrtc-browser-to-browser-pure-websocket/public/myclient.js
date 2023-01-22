@@ -11,11 +11,9 @@ const config = {
 const video = document.querySelector("video");
 
 SIGNALLING_SERVER_URL = "wss://simple-webrtc-signal-3khoexoznq-uc.a.run.app/";
-// SIGNALLING_SERVER_URL = "wss://video-demo-3khoexoznq-uc.a.run.app/";
 const socket = new WebSocket(SIGNALLING_SERVER_URL);
 socket.addEventListener("open", () => {
     console.log("opened connection to signalling server");
-    // send("ESTABLISHED");
 });
 
 socket.addEventListener("message", function (event) {
