@@ -4,10 +4,8 @@
 <dict>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
-	<key>NSMicrophoneUsageDescription</key>
-	<string>streaming phone audio to VR</string>
 	<key>CFBundleDisplayName</key>
-	<string>BroadcastUpload</string>
+	<string>Stream To VR</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -31,5 +29,7 @@
 		<key>RPBroadcastProcessMode</key>
 		<string>RPBroadcastProcessModeSampleBuffer</string>
 	</dict>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>streaming phone audio to VR</string>
 </dict>
 </plist>
