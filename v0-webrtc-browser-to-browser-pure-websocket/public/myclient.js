@@ -11,9 +11,11 @@ const config = {
 const video = document.querySelector("video");
 
 SIGNALLING_SERVER_URL = "wss://simple-webrtc-signal-3khoexoznq-uc.a.run.app/";
+// SIGNALLING_SERVER_URL = "wss://video-demo-3khoexoznq-uc.a.run.app/";
 const socket = new WebSocket(SIGNALLING_SERVER_URL);
 socket.addEventListener("open", () => {
     console.log("opened connection to signalling server");
+    // send("ESTABLISHED");
 });
 
 socket.addEventListener("message", function (event) {
@@ -27,14 +29,14 @@ socket.addEventListener("message", function (event) {
             console.log("apply remote session description");
             peerConnection = new RTCPeerConnection(config);
             peerConnection
-                .setRemoteDescription({ sdp: json.payload.sdp, type: json.type })
+                .setRemoteDescription({ sdp: json.sessionDescription.sdp, type: json.type })
                 .then(() => peerConnection.createAnswer())
                 .then(sdp => peerConnection.setLocalDescription(sdp))
                 .then(() => {
                     socket.send(
                         JSON.stringify({
                             type: "answer",
-                            payload: peerConnection.localDescription,
+                            sessionDescription: peerConnection.localDescription,
                         }),
                     );
                 });
@@ -45,19 +47,36 @@ socket.addEventListener("message", function (event) {
 
             peerConnection.onicecandidate = event => {
                 if (event.candidate) {
+                    console.log("---------");
+                    console.log(event.candidate)
                     socket.send(
                         JSON.stringify({
                             type: "candidate",
-                            payload: event.candidate,
+                            candidate: {
+                                sdp: event.candidate.candidate,
+                                sdpMLineIndex: event.candidate.sdpMLineIndex,
+                                sdpMid: event.candidate.sdpMid,
+                            },
                         }),
                     );
                 }
             };
+
+            // peerConnection
+            //     .createOffer()
+            //     .then(sdp => peerConnection.setLocalDescription(sdp))
+            //     .then(() => {
+            //         socket.send(
+            //             JSON.stringify({
+            //                 type: "offer",
+            //                 payload: peerConnection.localDescription
+            //             }),
+            //         );
+            //     });
         } else if (json.type === "candidate") {
-            // ice candidate
-            console.log("apply ice candidate", json.payload.candidate);
+            console.log("apply ice candidate", json.candidate);
             peerConnection
-                .addIceCandidate(new RTCIceCandidate(json.payload))
+                .addIceCandidate(new RTCIceCandidate(json.candidate))
                 .catch(e => console.error(e));
         } else if (json.type === "broadcaster") {
             socket.send(

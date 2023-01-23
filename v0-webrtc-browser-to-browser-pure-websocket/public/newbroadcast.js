@@ -20,8 +20,7 @@ socket.addEventListener("open", () => {
 
     socket.send(
         JSON.stringify({
-            type: "broadcaster",
-            payload: {},
+          type: "broadcaster",
         }),
     );
 });
@@ -48,7 +47,7 @@ socket.addEventListener("message", function (event) {
                     socket.send(
                         JSON.stringify({
                             type: "candidate",
-                            payload: event.candidate,
+                          candidate: event.candidate,
                         }),
                     );
                 }
@@ -61,14 +60,14 @@ socket.addEventListener("message", function (event) {
                     socket.send(
                         JSON.stringify({
                             type: "offer",
-                            payload: peerConnection.localDescription
+                          sessionDescription: peerConnection.localDescription
                         }),
                     );
                 });
         } else if (json.type === "answer") {
-            peerConnection.setRemoteDescription(json.payload);
+          peerConnection.setRemoteDescription(json.sessionDescription);
         } else if (json.type === "candidate") {
-            peerConnection.addIceCandidate(new RTCIceCandidate(json.payload))
+          peerConnection.addIceCandidate(new RTCIceCandidate(json.candidate))
                 .catch(e => console.error(e));
         } else {
             console.log("uknown message type", json.type)
@@ -133,8 +132,11 @@ function gotStream(stream) {
         option => option.text === stream.getVideoTracks()[0].label
     );
     videoElement.srcObject = stream;
-    // socket.emit("broadcaster");
-
+  socket.send(
+    JSON.stringify({
+      type: "broadcaster",
+    }),
+  );
 }
 
 function handleError(error) {
