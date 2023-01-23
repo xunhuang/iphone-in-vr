@@ -68,14 +68,10 @@ protocol WebRTCClientDelegate {
         self.channels.datachannel = dataChannel
         self.customFrameCapturer = customFrameCapturer
         
-        var videoEncoderFactory = RTCDefaultVideoEncoderFactory()
-        var videoDecoderFactory = RTCDefaultVideoDecoderFactory()
+//        var videoEncoderFactory = RTCDefaultVideoEncoderFactory()
+        let videoEncoderFactory = RTCVideoEncoderFactoryH264()
+        let videoDecoderFactory = RTCDefaultVideoDecoderFactory()
         
-        if TARGET_OS_SIMULATOR != 0 {
-            print("setup vp8 codec")
-            videoEncoderFactory = RTCSimluatorVideoEncoderFactory()
-            videoDecoderFactory = RTCSimulatorVideoDecoderFactory()
-        }
         self.peerConnectionFactory = RTCPeerConnectionFactory(encoderFactory: videoEncoderFactory, decoderFactory: videoDecoderFactory)
         
         setupView()

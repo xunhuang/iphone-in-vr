@@ -40,9 +40,8 @@ class SampleHandler: RPBroadcastSampleHandler,WebSocketDelegate, WebRTCClientDel
     override func processSampleBuffer(_ sampleBuffer: CMSampleBuffer, with sampleBufferType: RPSampleBufferType) {
         if (webRTCClient.isConnected && sampleBufferType == RPSampleBufferType.video) {
             self.webRTCClient.captureCurrentFrame(sampleBuffer: sampleBuffer)
-            print (sampleBuffer);
         } else {
-            print("not yet connected, dropping frame")
+//            print("not yet connected, dropping frame")
         }
         return;
     }
@@ -163,14 +162,19 @@ extension SampleHandler {
     }
     
     func didIceConnectionStateChanged(iceConnectionState: RTCIceConnectionState) {
+        print("ice connection state changed")
+
     }
-    
     func didConnectWebRTC() {
         // MARK: Disconnect websocket
+        print("web RTC connected")
+
         self.socket.disconnect()
     }
     
     func didDisconnectWebRTC() {
+        print("web RTC disconnected")
+
     }
     
     func didOpenDataChannel() {
