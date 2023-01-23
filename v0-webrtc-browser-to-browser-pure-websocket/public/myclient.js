@@ -75,8 +75,13 @@ socket.addEventListener("message", function (event) {
             //     });
         } else if (json.type === "candidate") {
             console.log("apply ice candidate", json.candidate);
+            let candidate = json.candidate;
+            if (!candidate.candidate) {
+                candidate.candidate = candidate.sdp;
+            }
+            console.log("candidate fixed", candidate);
             peerConnection
-                .addIceCandidate(new RTCIceCandidate(json.candidate))
+                .addIceCandidate(new RTCIceCandidate(candidate))
                 .catch(e => console.error(e));
         } else if (json.type === "broadcaster") {
             socket.send(
