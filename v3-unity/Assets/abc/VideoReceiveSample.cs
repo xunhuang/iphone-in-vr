@@ -82,7 +82,6 @@ namespace Unity.WebRTC.Samples
 #pragma warning restore 0649
 
         private RTCPeerConnection _pc1, _pc2;
-        private List<RTCRtpSender> pc1Senders;
         private VideoStreamTrack videoStreamTrack;
         private AudioStreamTrack audioStreamTrack;
         private MediaStream receiveAudioStream, receiveVideoStream;
@@ -91,21 +90,11 @@ namespace Unity.WebRTC.Samples
         private DelegateOnIceCandidate pc1OnIceCandidate;
         private DelegateOnIceCandidate pc2OnIceCandidate;
         private DelegateOnTrack pc2Ontrack;
-        private DelegateOnNegotiationNeeded pc1OnNegotiationNeeded;
         private WebCamTexture webCamTexture;
 
 
         private void Awake()
         {
-            Debug.Log("hello awake ");
-            callButton.onClick.AddListener(Call);
-            hangUpButton.onClick.AddListener(HangUp);
-            addTracksButton.onClick.AddListener(AddTracks);
-            removeTracksButton.onClick.AddListener(RemoveTracks);
-            useWebCamToggle.onValueChanged.AddListener(SwitchUseWebCam);
-            webCamListDropdown.options = WebCamTexture.devices.Select(x => new Dropdown.OptionData(x.name)).ToList();
-            useMicToggle.onValueChanged.AddListener(SwitchUseMic);
-            micListDropdown.options = Microphone.devices.Select(x => new Dropdown.OptionData(x)).ToList();
         }
 
         private void OnDestroy()
@@ -213,15 +202,6 @@ private IEnumerator handleOffer(string message) {
 
             Debug.Log("answer created 2");
             yield return OnCreateAnswerSuccess(_pc2, op.Desc);
-
-            // OfferFromSignal answer = new OfferFromSignal();
-            // answer.type = "answer";
-            // answer.sessionDescription = new SessionDescription();
-            // answer.sessionDescription.type = "answer";
-            // answer.sessionDescription.sdp = op.Desc.sdp;
-            // string json = JsonUtility.ToJson(answer);
-            // Debug.Log(json);
-            // websocket.SendText(json);
         }
 }
 
@@ -230,9 +210,6 @@ private IEnumerator handleOffer(string message) {
             Debug.Log("hello start ");
             SetupWebSocket();
 
-            pc1Senders = new List<RTCRtpSender>();
-            callButton.interactable = true;
-            hangUpButton.interactable = false;
 
             pc1OnIceConnectionChange = state => { OnIceConnectionChange(_pc1, state); };
             pc2OnIceConnectionChange = state => { OnIceConnectionChange(_pc2, state); };
@@ -255,7 +232,6 @@ private IEnumerator handleOffer(string message) {
                     receiveAudio.Play();
                 }
             };
-            pc1OnNegotiationNeeded = () => { StartCoroutine(PeerNegotiationNeeded(_pc1)); };
             StartCoroutine(WebRTC.Update());
         }
 
@@ -311,264 +287,14 @@ private IEnumerator handleOffer(string message) {
             }
         }
 
-        IEnumerator PeerNegotiationNeeded(RTCPeerConnection pc)
-        {
-            Debug.Log($"{GetName(pc)} createOffer start");
-            var op = pc.CreateOffer();
-            yield return op;
-
-            if (!op.IsError)
-            {
-                if (pc.SignalingState != RTCSignalingState.Stable)
-                {
-                    Debug.LogError($"{GetName(pc)} signaling state is not stable.");
-                    yield break;
-                }
-
-                yield return StartCoroutine(OnCreateOfferSuccess(pc, op.Desc));
-            }
-            else
-            {
-                OnCreateSessionDescriptionError(op.Error);
-            }
-        }
-
-        private void AddTracks()
-        {
-            var videoSender = _pc1.AddTrack(videoStreamTrack);
-            pc1Senders.Add(videoSender);
-            pc1Senders.Add(_pc1.AddTrack(audioStreamTrack));
-
-            if (WebRTCSettings.UseVideoCodec != null)
-            {
-                var codecs = new[] {WebRTCSettings.UseVideoCodec};
-                var transceiver = _pc1.GetTransceivers().First(t => t.Sender == videoSender);
-                transceiver.SetCodecPreferences(codecs);
-            }
-
-            addTracksButton.interactable = false;
-            removeTracksButton.interactable = true;
-        }
-
-        private void RemoveTracks()
-        {
-            var transceivers = _pc1.GetTransceivers();
-            foreach (var transceiver in transceivers)
-            {
-                if(transceiver.Sender != null)
-                {
-                    transceiver.Stop();
-                    _pc1.RemoveTrack(transceiver.Sender);
-                }
-            }
-
-            pc1Senders.Clear();
-            addTracksButton.interactable = true;
-            removeTracksButton.interactable = false;
-        }
-
-        private void SwitchUseWebCam(bool isOn)
-        {
-            webCamListDropdown.interactable = isOn;
-        }
-
-        private void SwitchUseMic(bool isOn)
-        {
-            micListDropdown.interactable = isOn;
-        }
-        
-        private void setupPeerConnectionAfterOfferCall() {
-            // var configuration = GetSelectedSdpSemantics();
-            // _pc2 = new RTCPeerConnection(ref configuration);
-            // await _pc2.setRemoteDescription(_pc1.localDescription);
-
-        }
-
-        private void Call()
-        {
-            useWebCamToggle.interactable = false;
-            webCamListDropdown.interactable = false;
-            useMicToggle.interactable = false;
-            micListDropdown.interactable = false;
-            callButton.interactable = false;
-            hangUpButton.interactable = true;
-            addTracksButton.interactable = true;
-            removeTracksButton.interactable = false;
-
-            Debug.Log("GetSelectedSdpSemantics");
-            var configuration = GetSelectedSdpSemantics();
-            _pc1 = new RTCPeerConnection(ref configuration);
-            Debug.Log("Created local peer connection object pc1");
-            _pc1.OnIceCandidate = pc1OnIceCandidate;
-            _pc1.OnIceConnectionChange = pc1OnIceConnectionChange;
-            _pc1.OnNegotiationNeeded = pc1OnNegotiationNeeded;
-
-            _pc2 = new RTCPeerConnection(ref configuration);
-            Debug.Log("Created remote peer connection object pc2");
-            _pc2.OnIceCandidate = pc2OnIceCandidate;
-            _pc2.OnIceConnectionChange = pc2OnIceConnectionChange;
-            _pc2.OnTrack = pc2Ontrack;
-
-            CaptureAudioStart();
-            StartCoroutine(CaptureVideoStart());
-        }
-
-        private void CaptureAudioStart()
-        {
-            if (!useMicToggle.isOn)
-            {
-                sourceAudio.clip = clip;
-                sourceAudio.loop = true;
-                sourceAudio.Play();
-                audioStreamTrack = new AudioStreamTrack(sourceAudio);
-                return;
-            }
-
-            var deviceName = Microphone.devices[micListDropdown.value];
-            Microphone.GetDeviceCaps(deviceName, out int minFreq, out int maxFreq);
-            var micClip = Microphone.Start(deviceName, true, 1, 48000);
-
-            // set the latency to “0” samples before the audio starts to play.
-            while (!(Microphone.GetPosition(deviceName) > 0)) {}
-
-            sourceAudio.clip = micClip;
-            sourceAudio.loop = true;
-            sourceAudio.Play();
-            audioStreamTrack = new AudioStreamTrack(sourceAudio);
-        }
-
-        private IEnumerator CaptureVideoStart()
-        {
-            if (!useWebCamToggle.isOn)
-            {
-                videoStreamTrack = cam.CaptureStreamTrack(WebRTCSettings.StreamSize.x, WebRTCSettings.StreamSize.y);
-                sourceImage.texture = cam.targetTexture;
-                yield break;
-            }
-
-            if (WebCamTexture.devices.Length == 0)
-            {
-                Debug.LogFormat("WebCam device not found");
-                yield break;
-            }
-
-            yield return Application.RequestUserAuthorization(UserAuthorization.WebCam);
-            if (!Application.HasUserAuthorization(UserAuthorization.WebCam))
-            {
-                Debug.LogFormat("authorization for using the device is denied");
-                yield break;
-            }
-
-            WebCamDevice userCameraDevice = WebCamTexture.devices[webCamListDropdown.value];
-            webCamTexture = new WebCamTexture(userCameraDevice.name, WebRTCSettings.StreamSize.x, WebRTCSettings.StreamSize.y, 30);
-            webCamTexture.Play();
-            yield return new WaitUntil(() => webCamTexture.didUpdateThisFrame);
-
-            videoStreamTrack = new VideoStreamTrack(webCamTexture);
-            sourceImage.texture = webCamTexture;
-        }
-
-        private void HangUp()
-        {
-            if (webCamTexture != null)
-            {
-                webCamTexture.Stop();
-                webCamTexture = null;
-            }
-
-            receiveAudioStream?.Dispose();
-            receiveAudioStream = null;
-            receiveVideoStream?.Dispose();
-            receiveVideoStream = null;
-
-            videoStreamTrack?.Dispose();
-            videoStreamTrack = null;
-            audioStreamTrack?.Dispose();
-            audioStreamTrack = null;
-
-            Debug.Log("Close local/remote peer connection");
-            _pc1?.Dispose();
-            _pc2?.Dispose();
-            _pc1 = null;
-            _pc2 = null;
-            sourceImage.texture = null;
-            sourceAudio.Stop();
-            sourceAudio.clip = null;
-            receiveImage.texture = null;
-            receiveAudio.Stop();
-            receiveAudio.clip = null;
-            useWebCamToggle.interactable = true;
-            webCamListDropdown.interactable = useWebCamToggle.isOn;
-            useMicToggle.interactable = true;
-            micListDropdown.interactable = useMicToggle.isOn;
-            callButton.interactable = true;
-            hangUpButton.interactable = false;
-            addTracksButton.interactable = false;
-            removeTracksButton.interactable = false;
-        }
-
         private void OnIceCandidate(RTCPeerConnection pc, RTCIceCandidate candidate)
         {
-            // GetOtherPc(pc).AddIceCandidate(candidate);
             Debug.Log($"{GetName(pc)} ICE candidate:\n {candidate.Candidate}");
         }
 
         private string GetName(RTCPeerConnection pc)
         {
             return (pc == _pc1) ? "pc1" : "pc2";
-        }
-
-        private RTCPeerConnection GetOtherPc(RTCPeerConnection pc)
-        {
-            return (pc == _pc1) ? _pc2 : _pc1;
-        }
-
-        private IEnumerator OnCreateOfferSuccess(RTCPeerConnection pc, RTCSessionDescription desc)
-        {
-            Debug.Log($"Offer from {GetName(pc)}\n{desc.sdp}");
-            Debug.Log($"{GetName(pc)} setLocalDescription start");
-            var op = pc.SetLocalDescription(ref desc);
-            yield return op;
-
-            if (!op.IsError)
-            {
-                OnSetLocalSuccess(pc);
-            }
-            else
-            {
-                var error = op.Error;
-                OnSetSessionDescriptionError(ref error);
-            }
-
-            var otherPc = GetOtherPc(pc);
-            Debug.Log($"{GetName(otherPc)} setRemoteDescription start");
-            var op2 = otherPc.SetRemoteDescription(ref desc);
-            yield return op2;
-            if (!op2.IsError)
-            {
-                OnSetRemoteSuccess(otherPc);
-            }
-            else
-            {
-                var error = op2.Error;
-                OnSetSessionDescriptionError(ref error);
-            }
-
-            Debug.Log($"{GetName(otherPc)} createAnswer start");
-            // Since the 'remote' side has no media stream we need
-            // to pass in the right constraints in order for it to
-            // accept the incoming offer of audio and video.
-
-            var op3 = otherPc.CreateAnswer();
-            yield return op3;
-            if (!op3.IsError)
-            {
-                yield return OnCreateAnswerSuccess(otherPc, op3.Desc);
-            }
-            else
-            {
-                OnCreateSessionDescriptionError(op3.Error);
-            }
         }
 
         private void OnSetLocalSuccess(RTCPeerConnection pc)
@@ -611,21 +337,6 @@ private IEnumerator handleOffer(string message) {
                 var error = op.Error;
                 OnSetSessionDescriptionError(ref error);
             }
-
-            // var otherPc = GetOtherPc(pc);
-            // Debug.Log($"{GetName(otherPc)} setRemoteDescription start");
-
-            // var op2 = otherPc.SetRemoteDescription(ref desc);
-            // yield return op2;
-            // if (!op2.IsError)
-            // {
-            //     OnSetRemoteSuccess(otherPc);
-            // }
-            // else
-            // {
-            //     var error = op2.Error;
-            //     OnSetSessionDescriptionError(ref error);
-            // }
         }
 
         private static void OnCreateSessionDescriptionError(RTCError error)
